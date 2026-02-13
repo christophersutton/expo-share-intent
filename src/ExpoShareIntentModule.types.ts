@@ -75,6 +75,7 @@ export interface AndroidShareIntent extends BaseShareIntent {
 export interface IosShareIntent extends BaseShareIntent {
   files?: IosShareIntentFile[];
   weburls?: { url: string; meta: string }[];
+  conversationIdentifier?: string;
   type: "media" | "file" | "text" | "weburl";
 }
 
