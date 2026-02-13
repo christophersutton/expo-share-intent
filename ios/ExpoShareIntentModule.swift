@@ -53,13 +53,30 @@ public class ExpoShareIntentModule: Module {
     private var initialText: String? = nil
     private var latestText: String? = nil
 
+    private func getSharedKey(from url: URL) -> String? {
+        if let dataUrl = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?
+            .first(where: { $0.name == "dataUrl" })?
+            .value,
+            !dataUrl.isEmpty
+        {
+            return dataUrl
+        }
+
+        if let host = url.host, host.contains("=") {
+            return host.components(separatedBy: "=").last
+        }
+
+        return nil
+    }
+
     private func handleUrl(url: URL?) -> String? {
         let appGroupIdentifier = self.getAppGroupIdentifier()
         NSLog("HandleUrl \(String(describing: url)) \(String(describing: appGroupIdentifier))")
         if let url = url {
             let userDefaults = UserDefaults(suiteName: appGroupIdentifier)
             if url.fragment == "media" {
-                if let key = url.host?.components(separatedBy: "=").last {
+                if let key = getSharedKey(from: url) {
                     if let json = userDefaults?.object(forKey: key) as? Data {
                         let sharedArray = decodeMedia(data: json)
                         let sharedMediaFiles: [SharedMediaFile] = sharedArray.compactMap {
@@ -84,13 +101,17 @@ public class ExpoShareIntentModule: Module {
                             return nil
                         }
                         guard let json = toJson(data: sharedMediaFiles) else { return "[]" }
+                        let conversationId = userDefaults?.string(forKey: "\(key)_conversationIdentifier")
+                        if let cid = conversationId {
+                            return "{ \"files\": \(json), \"type\": \"\(url.fragment!)\", \"conversationIdentifier\": \"\(cid)\" }"
+                        }
                         return "{ \"files\": \(json), \"type\": \"\(url.fragment!)\" }"
                     } else {
                         return "empty"
                     }
                 }
             } else if url.fragment == "file" {
-                if let key = url.host?.components(separatedBy: "=").last {
+                if let key = getSharedKey(from: url) {
                     if let json = userDefaults?.object(forKey: key) as? Data {
                         let sharedArray = decodeMedia(data: json)
                         let sharedMediaFiles: [SharedMediaFile] = sharedArray.compactMap {
@@ -103,13 +124,17 @@ public class ExpoShareIntentModule: Module {
                             return nil
                         }
                         guard let json = toJson(data: sharedMediaFiles) else { return "[]" }
+                        let conversationId = userDefaults?.string(forKey: "\(key)_conversationIdentifier")
+                        if let cid = conversationId {
+                            return "{ \"files\": \(json), \"type\": \"\(url.fragment!)\", \"conversationIdentifier\": \"\(cid)\" }"
+                        }
                         return "{ \"files\": \(json), \"type\": \"\(url.fragment!)\" }"
                     } else {
                         return "empty"
                     }
                 }
             } else if url.fragment == "weburl" {
-                if let key = url.host?.components(separatedBy: "=").last {
+                if let key = getSharedKey(from: url) {
                     if let json = userDefaults?.object(forKey: key) as? Data {
                         let sharedArray = decodeWebUrl(data: json)
                         let sharedWebUrls: [WebUrl] = sharedArray.compactMap {
@@ -122,7 +147,7 @@ public class ExpoShareIntentModule: Module {
                     }
                 }
             } else if url.fragment == "text" {
-                if let key = url.host?.components(separatedBy: "=").last {
+                if let key = getSharedKey(from: url) {
                     if let sharedArray = userDefaults?.object(forKey: key) as? [String] {
                         latestText = sharedArray.joined(separator: ",")
                         let optionalString = latestText

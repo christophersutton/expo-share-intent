@@ -4,6 +4,7 @@
  * inspired by :
  *  - https://ajith-ab.github.io/react-native-receive-sharing-intent/docs/ios#create-share-extension
  */
+import Intents
 import MobileCoreServices
 import Photos
 import Social
@@ -28,10 +29,12 @@ class ShareViewController: UIViewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
-  }
-
-  override func viewDidAppear(_ animated: Bool) {
-    super.viewDidAppear(animated)
+    // Make the share extension invisible — no white card/sheet
+    modalPresentationStyle = .overFullScreen
+    view.backgroundColor = .clear
+    view.isOpaque = false
+    view.alpha = 0
+    // Start processing immediately (extensionContext is available in viewDidLoad)
     Task {
       guard let extensionContext = self.extensionContext,
         let content = extensionContext.inputItems.first as? NSExtensionItem,
@@ -39,6 +42,18 @@ class ShareViewController: UIViewController {
       else {
         dismissWithError(message: "No content found")
         return
+      }
+      // Extract conversationIdentifier from INSendMessageIntent (conversation suggestions)
+      if let intent = extensionContext.intent as? INSendMessageIntent,
+         let conversationId = intent.conversationIdentifier, !conversationId.isEmpty {
+        let userDefaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
+        userDefaults?.set(conversationId, forKey: "\(self.sharedKey)_conversationIdentifier")
+        userDefaults?.synchronize()
+      } else {
+        // Clear any stale conversation identifier
+        let userDefaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
+        userDefaults?.removeObject(forKey: "\(self.sharedKey)_conversationIdentifier")
+        userDefaults?.synchronize()
       }
       for (index, attachment) in (attachments).enumerated() {
         if attachment.hasItemConformingToTypeIdentifier(imageContentType) {
@@ -65,6 +80,10 @@ class ShareViewController: UIViewController {
         }
       }
     }
+  }
+
+  override func viewDidAppear(_ animated: Bool) {
+    super.viewDidAppear(animated)
   }
 
   private func handleVCard(content: NSExtensionItem, attachment: NSItemProvider, index: Int) async {
@@ -478,7 +497,7 @@ class ShareViewController: UIViewController {
   }
 
   private func redirectToHostApp(type: RedirectType) {
-    let url = URL(string: "\(shareProtocol)://dataUrl=\(sharedKey)#\(type)")!
+    let url = URL(string: "\(shareProtocol)://share?dataUrl=\(sharedKey)#\(type)")!
     var responder = self as UIResponder?
 
     while responder != nil {

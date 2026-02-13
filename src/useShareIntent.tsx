@@ -50,7 +50,8 @@ export default function useShareIntent(
    */
   const refreshShareIntent = () => {
     options.debug && console.debug("useShareIntent[refresh]", url);
-    if (url?.includes(`${getScheme(options)}://dataUrl=`)) {
+    if (url?.includes(`${getScheme(options)}://dataUrl=`) ||
+        url?.includes(`${getScheme(options)}://share?dataUrl=`)) {
       // iOS only
       ExpoShareIntentModule?.getShareIntent(url);
     } else if (Platform.OS === "android") {

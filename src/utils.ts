@@ -119,6 +119,9 @@ export const parseShareIntent = (
         file.mimeType.startsWith("image/") ||
         file.mimeType.startsWith("video/"),
     );
+    const mediaMeta = shareIntent?.conversationIdentifier
+      ? { conversationIdentifier: shareIntent.conversationIdentifier }
+      : null;
     result = {
       ...SHAREINTENT_DEFAULTVALUE,
       files: shareIntent?.files
@@ -143,6 +146,7 @@ export const parseShareIntent = (
           }, [])
         : null,
       type: isMedia ? "media" : "file",
+      ...(mediaMeta ? { meta: mediaMeta } : {}),
     };
   }
   options.debug &&
